@@ -42,7 +42,7 @@ pipeline {
           }
      }
 
-     stage ('Login and Push Image on docker hub') {
+          stage ('Login and Push Image on docker hub') {
           agent any
         environment {
            DOCKERHUB_PASSWORD  = credentials('dockerhub')
@@ -50,32 +50,43 @@ pipeline {
           steps {
              script {
                sh '''
-                   echo $DOCKERHUB_PASSWORD | docker login -u $ID_DOCKER --password-stdin
+                   echo $DOCKERHUB_PASSWORD_PSW | docker login -u $ID_DOCKER --password-stdin
                    docker push ${ID_DOCKER}/$IMAGE_NAME:$IMAGE_TAG
                '''
              }
           }
       }    
      
-     stage('Push image in staging and deploy it') {
-       when {
-              expression { GIT_BRANCH == 'origin/main' }
-            }
-      agent any
-      environment {
-          HEROKU_API_KEY = credentials('heroku')
-      }  
-      steps {
-          script {
+      stage('Push image in staging and deploy it') {
+    when {
+        expression { GIT_BRANCH == 'origin/main' }
+    }
+    agent any
+    environment {
+        HEROKU_API_KEY = credentials('heroku_api_key')
+    }  
+    steps {
+        script {
             sh '''
-              npm install heroku
-              heroku container:login
-              heroku create $STAGING || echo "project already exist"
-              heroku container:push -a $STAGING web
-              heroku container:release -a $STAGING web
+                npm install heroku
+                heroku container:login
+                heroku create $STAGING || echo "project already exist"
+                heroku container:push -a $STAGING web
+                heroku container:release -a $STAGING web
             '''
-          }
         }
-     }
+    }
+}
   }
+    post {
+        always {
+            emailext (
+                attachLog: true,
+                from: 'lionelkomguemalma@gmail.com',
+                to: 'lukamang@hotmail.fr',
+                subject: "Rapport de build - ${currentBuild.fullDisplayName}",
+                body: "Bonjour,\n\nLe build ${currentBuild.fullDisplayName} s'est terminé avec le statut ${currentBuild.currentResult}.\n\nCordialement,\nJenkins",
+            )
+        }
+    }
 }
